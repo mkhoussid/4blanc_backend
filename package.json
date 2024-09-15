@@ -1,0 +1,31 @@
+{
+	"name": "paranepara",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"build": "rm -rf build && tsc -p tsconfig.json",
+		"dev": "cross-env NODE_ENV=development NODE_OPTIONS=--stack-trace-limit=100 nodemon index.ts",
+		"start": "pm2 start ecosystem.config.js"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"cross-env": "^7.0.3",
+		"dotenv": "^16.3.1",
+		"pg": "^8.11.3"
+	},
+	"devDependencies": {
+		"@types/node": "^22.5.4",
+		"@types/pg": "^8.11.9",
+		"@typescript-eslint/eslint-plugin": "^8.5.0",
+		"@typescript-eslint/parser": "^8.5.0",
+		"eslint": "^9.10.0",
+		"nodemon": "^3.1.4",
+		"rimraf": "^6.0.1",
+		"ts-node": "^10.9.2",
+		"tsconfig-paths": "^4.2.0",
+		"typescript": "^5.6.2"
+	}
+}
