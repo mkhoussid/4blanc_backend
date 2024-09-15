@@ -12,7 +12,7 @@ const PORT = +(process.env.PORT || '0');
 const start = async () => {
 	try {
 		await connectDb();
-		await initSql();
+		// await initSql();
 
 		http.createServer(requestHandler).listen(PORT, listenHander(PORT));
 	} catch (err) {

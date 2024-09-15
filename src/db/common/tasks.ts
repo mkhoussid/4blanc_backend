@@ -1,9 +1,10 @@
-import { executeQuery } from 'db/executeQuery';
+import { executeQuery, TValue } from 'db/executeQuery';
 import { TableName } from 'enums/TableName';
 import { TaskDTOField } from 'enums/TaskDTOField';
+import { FetchTasksResult } from 'interfaces/FetchTasksResult';
 import { WithOmittable } from 'interfaces/WithOmittable';
 import { TaskDTO } from 'src/interfaces/TaskDTO';
-import { generateTableName, preparedOrderedValuesForParameterizedQuery } from 'utils/db';
+import { generateTableName, getDbRecordRequestLimit, preparedOrderedValuesForParameterizedQuery } from 'utils/db';
 
 export const createTask = (fields: WithOmittable<TaskDTO>) => {
 	const columns = Object.keys(fields);
@@ -26,15 +27,48 @@ export const createTask = (fields: WithOmittable<TaskDTO>) => {
 	});
 };
 
-export const fetchTasks = ({ page, taskSearchQuery }: { page: string; taskSearchQuery?: string }) => {
-	const values = (
+const getButtonsToRight = (tasksLength: number) => {
+	if (tasksLength > 20) {
+		return 2;
+	}
+
+	if (tasksLength > 10) {
+		return 1;
+	}
+
+	return 0;
+};
+
+const topCountMap = {
+	0: 51,
+	1: 41,
+};
+
+const buttonsToRightMap = {
+	31: 2,
+	41: 3,
+	51: 4,
+};
+export const fetchTasks = async ({
+	page: _page,
+	taskSearchQuery,
+}: {
+	page: number | 'end';
+	taskSearchQuery?: string;
+}): Promise<FetchTasksResult> => {
+	const dbRecordRequestLimit = getDbRecordRequestLimit();
+	const adjustedPage = +_page - 1;
+
+	const [offset, ...rest] = (
 		[
-			Math.max(0, +(process.env.DB_REQ_RECORD_LIMIT ?? '0') * (+page - 1)),
+			Math.max(0, dbRecordRequestLimit * adjustedPage),
 			taskSearchQuery && ['%', taskSearchQuery, '%'].join(''),
-		] as Array<string | number | boolean>
+		] as TValue[]
 	).filter((value) => typeof value !== 'undefined');
 
-	return executeQuery<TaskDTO[]>({
+	const topCount = topCountMap[adjustedPage as keyof typeof topCountMap] ?? 31;
+
+	const tasks = await executeQuery<TaskDTO[]>({
 		table: TableName.Task,
 		query: `
 			SELECT
@@ -43,34 +77,59 @@ export const fetchTasks = ({ page, taskSearchQuery }: { page: string; taskSearch
 				${TaskDTOField.DeadlineDate}
 			FROM
 				${generateTableName(TableName.Task)}
-			${taskSearchQuery ? `WHERE ${TaskDTOField.Title} ILIKE $2` : ''}
-			ORDER BY ${TaskDTOField.Id} ASC
-			OFFSET $1
-			LIMIT 10
+			${taskSearchQuery ? `WHERE ${TaskDTOField.Title} ILIKE $4` : ''}
+			ORDER BY ${TaskDTOField.Id} $3
+			OFFSET $2
+			FETCH FIRST $1 ROWS ONLY
 		`,
-		values,
-	});
-};
-
-export const fetchTasksCount = async (args?: { taskSearchQuery?: string }): Promise<number> => {
-	const taskSearchQuery = args?.taskSearchQuery;
-	const values = [taskSearchQuery && ['%', taskSearchQuery, '%'].join('')].filter(Boolean) as string[];
-
-	const result = await executeQuery<{ count: number }>({
-		table: TableName.Task,
-		query: `
-			SELECT
-				COUNT(*)
-			FROM
-				${generateTableName(TableName.Task)}
-			${taskSearchQuery ? `WHERE ${TaskDTOField.Title} ILIKE $1` : ''}
-		`,
-		returnSingleton: true,
-		values,
+		values: [topCount, offset, , ...rest],
 	});
 
-	return result.count;
+	const buttonsToRight =
+		buttonsToRightMap[tasks.length as keyof typeof buttonsToRightMap] ?? getButtonsToRight(tasks.length);
+
+	console.log('buttonsToRight', { buttonsToRight, l: tasks.length });
+	return {
+		tasks: tasks.slice(0, dbRecordRequestLimit),
+		buttonsToRight,
+	};
+	// return executeQuery<TaskDTO[]>({
+	// 	table: TableName.Task,
+	// 	query: `
+	// 		SELECT
+	// 			${TaskDTOField.Id},
+	// 			${TaskDTOField.Title},
+	// 			${TaskDTOField.DeadlineDate}
+	// 		FROM
+	// 			${generateTableName(TableName.Task)}
+	// 		${taskSearchQuery ? `WHERE ${TaskDTOField.Title} ILIKE $2` : ''}
+	// 		ORDER BY ${TaskDTOField.Id} ASC
+	// 		OFFSET $1
+	// 		LIMIT 10
+	// 	`,
+	// 	values:[offset, ...rest],
+	// });
 };
+
+// export const fetchTasksCount = async (args?: { taskSearchQuery?: string }): Promise<number> => {
+// 	const taskSearchQuery = args?.taskSearchQuery;
+// 	const values = [taskSearchQuery && ['%', taskSearchQuery, '%'].join('')].filter(Boolean) as string[];
+
+// 	const result = await executeQuery<{ count: number }>({
+// 		table: TableName.Task,
+// 		query: `
+// 			SELECT
+// 				COUNT(*)
+// 			FROM
+// 				${generateTableName(TableName.Task)}
+// 			${taskSearchQuery ? `WHERE ${TaskDTOField.Title} ILIKE $1` : ''}
+// 		`,
+// 		returnSingleton: true,
+// 		values,
+// 	});
+
+// 	return result.count;
+// };
 
 export const fetchTask = (taskId: number) =>
 	executeQuery<TaskDTO | null>({

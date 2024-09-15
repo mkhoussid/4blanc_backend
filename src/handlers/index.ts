@@ -1,26 +1,31 @@
-import { fetchTask, fetchTasks, fetchTasksCount } from 'db/common/tasks';
+import {
+	fetchTask,
+	fetchTasks,
+	// fetchTasksCount
+} from 'db/common/tasks';
 import { KnownHandler } from 'enums/KnownHandler';
 import { MethodType } from 'enums/MethodType';
 import { Param } from 'enums/Param';
+import { FetchTasksResult } from 'interfaces/FetchTasksResult';
 import { TaskDTO } from 'interfaces/TaskDTO';
 import { TRequest } from 'interfaces/TRequest';
 import { TResponse } from 'interfaces/TResponse';
 import { getRequestParams, sendRedirect, sendResponse } from 'utils/server';
 
-let tasksCount: number | null = null;
-if (!tasksCount) {
-	const updateTasksCount = async () => {
-		try {
-			tasksCount = await fetchTasksCount();
-		} catch (err) {
-			console.log(err);
-		}
-	};
+// let tasksCount: number | null = null;
+// if (!tasksCount) {
+// 	const updateTasksCount = async () => {
+// 		try {
+// 			tasksCount = await fetchTasksCount();
+// 		} catch (err) {
+// 			console.log(err);
+// 		}
+// 	};
 
-	updateTasksCount();
+// 	updateTasksCount();
 
-	setInterval(updateTasksCount, 60 * 60 * 1000); // 1hr
-}
+// 	setInterval(updateTasksCount, 60 * 60 * 1000); // 1hr
+// }
 
 export const handlers: Record<
 	'api',
@@ -47,7 +52,7 @@ export const handlers: Record<
 							return sendResponse({ request, response, data: { task } });
 						}
 
-						const page = getRequestParams(request, Param.Page);
+						const page = +getRequestParams(request, Param.Page);
 						let redirect = typeof page === 'undefined' || +page <= 0;
 
 						if (redirect) {
@@ -65,14 +70,18 @@ export const handlers: Record<
 							}
 						})();
 
-						const [tasks, cachedTotalCount, withQueryTotalCount] =
-							(await Promise.all([
-								fetchTasks({ page, taskSearchQuery }),
-								tasksCount || fetchTasksCount(),
-								taskSearchQuery
-									? fetchTasksCount({ taskSearchQuery })
-									: null,
-							])) as [TaskDTO[], number, number?];
+						const [
+							{ tasks, buttonsToRight },
+							// cachedTotalCount,
+							// withQueryTotalCount,
+						] = (await Promise.all([
+							fetchTasks({ page, taskSearchQuery }),
+							// tasksCount || fetchTasksCount(),
+							// taskSearchQuery ? fetchTasksCount({ taskSearchQuery }) : null,
+						])) as [
+							FetchTasksResult,
+							//number, number?
+						];
 
 						redirect = +page > 0 && !taskSearchQuery && tasks.length === 0;
 
@@ -83,7 +92,11 @@ export const handlers: Record<
 						sendResponse({
 							request,
 							response,
-							data: { tasks, count: withQueryTotalCount || cachedTotalCount },
+							data: {
+								tasks,
+								// count: withQueryTotalCount || cachedTotalCount,
+								buttonsToRight,
+							},
 						});
 					} catch (err) {
 						console.log(err);

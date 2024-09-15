@@ -50,3 +50,5 @@ export const initSql = async () => {
 };
 
 export const generateTableName = (tableName: TableName) => [process.env.POSTGRES_SCHEMA, tableName].join('.');
+
+export const getDbRecordRequestLimit = () => +(process.env.DB_REQ_RECORD_LIMIT ?? '0');
