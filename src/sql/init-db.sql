@@ -10,3 +10,5 @@ CREATE TABLE IF NOT EXISTS %%.task (
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
 );
+
+CREATE INDEX idx_task_title ON %%.task (title);
